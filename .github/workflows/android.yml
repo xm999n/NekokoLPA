@@ -41,7 +41,7 @@ jobs:
           chmod +x apply_variant.sh generate_variant.sh build_variant.sh variants/*/signing.sh
           
           ./build_variant.sh multisign ee.nekoko.nlpa-${VERSION}-multisign.apk
-
+          
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -54,7 +54,7 @@ jobs:
           prerelease: false
           body: |
             Auto-Release for version ${{ env.VERSION }}.
-
+            
       - name: Upload Multisign APK to Release
         uses: actions/upload-release-asset@v1
         env:
@@ -64,14 +64,3 @@ jobs:
           asset_path: ./output/ee.nekoko.nlpa-${{ env.VERSION }}-multisign.apk
           asset_name: ee.nekoko.nlpa-${{ env.VERSION }}-multisign.apk
           asset_content_type: application/vnd.android.package-archive
-
-      - name: Upload Multisign to Telegram
-        uses: xz-dev/TelegramFileUploader@v1.1.1
-        with:
-          to-who: 'NekokoLPA'
-          message: 'NekokoLPA Multisign v${{ env.VERSION }} (Github: https://github.com/iebb/NekokoLPA/releases/tag/v${{ env.VERSION }})'
-          files: ./output/ee.nekoko.nlpa-${{ env.VERSION }}-multisign.apk
-        env:
-          API_ID: ${{ secrets.API_ID }}
-          API_HASH: ${{ secrets.API_HASH }}
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
