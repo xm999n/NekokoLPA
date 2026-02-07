@@ -1,3 +1,4 @@
+
 name: Android CI
 
 on:
@@ -12,7 +13,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
       - name: set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -32,12 +32,30 @@ jobs:
         id: extract_version
         run: echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Create debug variant
+        run: |
+          mkdir -p variants/debug
+          echo "#!/bin/bash" > variants/debug/check.sh
+          echo "exit 0" >> variants/debug/check.sh
+          chmod +x variants/debug/check.sh
 
-      - name: Build with Gradle
-        run: ./gradlew assembleRelease
+      - name: Prepare build scripts
+        run: |
+          mkdir -p output
+          chmod +x apply_variant.sh generate_variant.sh build_variant.sh
 
+      - name: Build Debug APK
+        run: ./build_variant.sh debug ee.nekoko.nlpa-${VERSION}-debug.apk "./gradlew assembleDebug"
+
+      - name: Build Release APK (Debug Signed)
+        run: ./build_variant.sh debug ee.nekoko.nlpa-${VERSION}-release.apk "./gradlew assembleRelease"
+
+      - name: Build Release APK (Unsigned)
+        run: |
+          # 直接构建 release 不签名
+          ./gradlew assembleRelease
+          cp android/app/build/outputs/apk/release/app-arm64-v8a-release.apk output/ee.nekoko.nlpa-${VERSION}-release-unsigned.apk
+          
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -50,13 +68,33 @@ jobs:
           prerelease: false
           body: |
             Auto-Release for version ${{ env.VERSION }}.
-            
-      - name: Upload APK to Release
+
+      - name: Upload Debug APK
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./app/build/outputs/apk/release/app-release-unsigned.apk
-          asset_name: ee.nekoko.nlpa-${{ env.VERSION }}.apk
+          asset_path: ./output/ee.nekoko.nlpa-${{ env.VERSION }}-debug.apk
+          asset_name: ee.nekoko.nlpa-${{ env.VERSION }}-debug.apk
+          asset_content_type: application/vnd.android.package-archive
+
+      - name: Upload Release APK (Debug Signed)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./output/ee.nekoko.nlpa-${{ env.VERSION }}-release.apk
+          asset_name: ee.nekoko.nlpa-${{ env.VERSION }}-release.apk
+          asset_content_type: application/vnd.android.package-archive
+
+      - name: Upload Release APK (Unsigned)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./output/ee.nekoko.nlpa-${{ env.VERSION }}-release-unsigned.apk
+          asset_name: ee.nekoko.nlpa-${{ env.VERSION }}-release-unsigned.apk
           asset_content_type: application/vnd.android.package-archive
